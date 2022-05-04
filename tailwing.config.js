@@ -1,8 +1,11 @@
 module.exports = {
-    purge: [
-      // Use *.tsx if using TypeScript
-      './pages/**/*.js',
-      './components/**/*.js'
-    ]
+    content: [
+      "./pages/**/*.{js,ts,jsx,tsx, md, mdx}",
+      "./components/**/*.{js,ts,jsx,tsx, md, mdx}",
+    ],
+    theme: {
+      extend: {},
+    },
+    plugins: [],
     // ...
   }

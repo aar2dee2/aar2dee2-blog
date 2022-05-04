@@ -1,20 +1,24 @@
 import Head from "next/head"
 import Image from "next/image"
 import utilStyles from "../styles/utils.module.css"
-import styles from "./layout.module.css"
+import "./layout.module.css"
 import Link from "next/link"
 
 const name = 'aar2dee2'
-export const siteTitle = 'Next.js Sample Website'
+export const siteTitle = 'aar2dee2 writes'
+
+interface AppProps {
+  home: any;
+} 
 
 export default function Layout({ children, home }) {
   return (
-    <div className={styles.container}>
+    <div >
       <Head>
         <link rel="icon" href="/favicon.ico" />
         <meta
           name="description"
-          content="Learn how to build a personal website using Next.js"
+          content="Building with NextJS, Typescript, Elixir"
         />
         <meta
           property="og:image"
@@ -25,7 +29,7 @@ export default function Layout({ children, home }) {
         <meta name="og:title" content={siteTitle} />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
-      <header className={styles.header}>
+      <header >
         {home ? (
           <>
             <Image
@@ -62,7 +66,7 @@ export default function Layout({ children, home }) {
       </header>
       <main>{children}</main>
       {!home && (
-        <div className={styles.backToHome}>
+        <div >
           <Link href="/">
             <a>← Back to home</a>
           </Link>
