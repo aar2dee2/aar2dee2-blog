@@ -1,7 +1,6 @@
 import Head from "next/head"
 import Image from "next/image"
 import utilStyles from "../styles/utils.module.css"
-import "./layout.module.css"
 import Link from "next/link"
 
 const name = 'aar2dee2'
@@ -13,7 +12,7 @@ interface AppProps {
 
 export default function Layout({ children, home }) {
   return (
-    <div className="flex flex-col justify-start content-center text-yellow">
+    <div className="layout-container">
       <Head>
         <link rel="icon" href="/favicon.ico" />
         <meta
@@ -29,7 +28,7 @@ export default function Layout({ children, home }) {
         <meta name="og:title" content={siteTitle} />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
-      <header >
+      <header className="flex flex-col " >
         {home ? (
           <>
             <Image
@@ -38,6 +37,7 @@ export default function Layout({ children, home }) {
               className={utilStyles.borderCircle}
               height={144}
               width={144}
+              objectFit="fill"
               alt={name}
             />
             <h1 className={utilStyles.heading2Xl}>{name}</h1>
@@ -66,7 +66,7 @@ export default function Layout({ children, home }) {
       </header>
       <main>{children}</main>
       {!home && (
-        <div >
+        <div className="mt-4">
           <Link href="/">
             <a>← Back to home</a>
           </Link>
