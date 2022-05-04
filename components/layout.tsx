@@ -13,7 +13,7 @@ interface AppProps {
 
 export default function Layout({ children, home }) {
   return (
-    <div >
+    <div className="flex flex-col justify-start content-center text-yellow">
       <Head>
         <link rel="icon" href="/favicon.ico" />
         <meta
