@@ -1,5 +1,5 @@
 ---
-title: 'NextJS Middleware for subdomains and resolving a 500'
+title: 'Setup subdomains with NextJS Middleware'
 date: '2022-05-03'
 ---
 ---
@@ -7,7 +7,10 @@ date: '2022-05-03'
 ###### Error: `UserScript Error: Failed with response code 500`
 ---
 
-> Huge shoutout to Joseph (@icyJoseph on Github) for patiently helping me debug on [Github Discussions](https://github.com/vercel/next.js/discussions/33636#discussioncomment-2671805) 🙏🏼
+> **Huge** shoutout to Joseph (@icyJoseph on Github) for patiently helping me debug on [Github Discussions](https://github.com/vercel/next.js/discussions/33636#discussioncomment-2671805) 🙏🏼
+
+> Note: This is a detailed post, explaining the errors I encountered and my approach to solving them.
+
 To create an app subdomain, such as `app.mydomain.com`, I used the [Vercel Platforms Starter Kit](https://vercel.com/guides/nextjs-multi-tenant-application) and its [corresponding Github respository](https://github.com/vercel/platforms).
 To setup subdomains in an existing app, you need to do the following:
 1. Add the subdomain to your Vercel configuration as detailed in Step 2 [here](https://vercel.com/guides/nextjs-multi-tenant-application#5.-deploy-to-vercel)
@@ -77,12 +80,12 @@ export default function middleware(req: NextRequest) {
 ```
 ### Part 1: Resolving `UserScript Error: Failed with response code 500`
 In development mode, the `middleware` function worked correctly - `app.localhost:3000` would display the `/pages/app/index.tsx` page. However, in production the build happened without errors, but checks threw a `UserScript Error: Failed with response code 500`.
-##### Vercel Deployment - builds without error, checks fail
-![1_deployment-log](/images/middleware-subdomain-500/1_deployment-log.png)
-##### Checkly Log - UserScript Error code 500
-![1_checkly-log](/images/middleware-subdomain-500/1_checkly-log.png)
-##### Vercel Edge Function - React Minified Error
-![1_edge-function-log](/images/middleware-subdomain-500/1_edge-function-log.png)
+> ##### Vercel Deployment - builds without error, checks fail
+> ![1_deployment-log](/images/middleware-subdomain-500/1_deployment-log.png)
+> ##### Checkly Log - UserScript Error code 500
+> ![1_checkly-log](/images/middleware-subdomain-500/1_checkly-log.png)
+> ##### Vercel Edge Function - React Minified Error
+> ![1_edge-function-log](/images/middleware-subdomain-500/1_edge-function-log.png)
 
 Though the error code was 500 - a server error - the Vercel edge function log stated a `React Minifed Error`. This is the full error text.
 ```
@@ -148,9 +151,9 @@ This fixed the `React Error` as seen in the Vercel Edge function logs.
 ### Part 2: `UserScript Error: Failed with response code 404`
 
 `404` is a page not found error, and as earlier, was occuring only when deploying to Vercel, not in development.
-##### Checkly Log: UserScript Error Code 404
-![2_checkly-log](/images/middleware-subdomain-500/2_checkly-log.png)
-![3_checkly-log-2](/images/middleware-subdomain-500/2_checkly-log_2.png)
+> ##### Checkly Log: UserScript Error Code 404
+> ![2_checkly-log](/images/middleware-subdomain-500/2_checkly-log.png)
+> ![3_checkly-log-2](/images/middleware-subdomain-500/2_checkly-log_2.png)
 
 By this point, I'd also set up the [Logflare integration for Vercel](https://vercel.com/integrations/logflare). This allows you to view all logs from a Vercel project in one place - logs from all deployments are included, ordered by timestamp. You can also search for specific error logs, group logs by timestamps or Vercel deployment urls, and view whether logs are happening during the `build` process, when using the `edge` functions or otherwise.
 While Checkly was showing a `404` error, there were no error logs in Logflare.
@@ -245,7 +248,7 @@ const currentHost = (() => {
 ```
 
 This did not resolved the `404` error on Checkly.
-![4_checkly-log](/images/middleware-subdomain-500/4_checkly-log.png)
+> ![4_checkly-log](/images/middleware-subdomain-500/4_checkly-log.png)
 
 I again pushed the deployment to production, skipping the checks. I could now access all pages on the subdomain `app.telborg.com` and also on the domain `www.telborg.com`, but not `telborg.com`. In the last if clause in `_middleware`, the conditions include `hostname === "localhost:3000"` and `hostname === "www.telborg.com"`. Adding `hostname === "telborg.com"` here allowed me to access the website on `telborg.com` too.
 ```ts
@@ -260,7 +263,7 @@ if (
 ```
 
 However, Checkly was not satisfied and was still showing the `404`.
-![5_checkly-log](/images/middleware-subdomain-500/5_checkly-log.png)
+> ![5_checkly-log](/images/middleware-subdomain-500/5_checkly-log.png)
 
 Finally, I included the vercel deployment url as a possible hostname `hostname === process.env.NEXT_PUBLIC_VERCEL_URL` in the last if clause in `_middleware`.
 ```ts
@@ -350,10 +353,10 @@ And that's all.
 
 To setup subdomains in your Vercel project:
 1. Add the subdomain and wildcard domain in your Vercel project domain settings.
-2. Setup the subdomain and wildcard domain in the DNS settings for your domain.
-3. Add `_middleware.ts` (or `_middleware.js`) file to your the root of your `/pages` directory. 
-4. Move all pages for the parent domain in the `/pages/home` directory.
-5. Add code to `_middleware.ts` using the [Vercel Platforms Starter](https://github.com/vercel/platforms/blob/5d2479f525b3f2611af7215e7b3465aa80f6d2a5/pages/_middleware.ts) and follow the instructions mentioned for adding your custom domain and `.vercel.app` domain.
-6. Add code to resolve the deployment urls using `process.env.NEXT_PUBLIC_VERCEL_URL`.
+1. Setup the subdomain and wildcard domain in the DNS settings for your domain.
+1. Add `_middleware.ts` (or `_middleware.js`) file to your the root of your `/pages` directory. 
+1. Move all pages for the parent domain in the `/pages/home` directory.
+1. Add code to `_middleware.ts` using the [Vercel Platforms Starter](https://github.com/vercel/platforms/blob/5d2479f525b3f2611af7215e7b3465aa80f6d2a5/pages/_middleware.ts) and follow the instructions mentioned for adding your custom domain and `.vercel.app` domain.
+1. Add code to resolve the deployment urls using `process.env.NEXT_PUBLIC_VERCEL_URL`.
 
 And Deploy to Vercel!
