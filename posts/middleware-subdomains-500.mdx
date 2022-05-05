@@ -6,12 +6,14 @@ date: '2022-05-03'
 ###### Goal: Create an `app` subdomain to host the app on [Telborg](telborg.com)
 ###### Error: `UserScript Error: Failed with response code 500`
 ---
+
+> Huge shoutout to Joseph (@icyJoseph on Github) for patiently helping me debug on [Github Discussions](https://github.com/vercel/next.js/discussions/33636#discussioncomment-2671805) 🙏🏼
 To create an app subdomain, such as `app.mydomain.com`, I used the [Vercel Platforms Starter Kit](https://vercel.com/guides/nextjs-multi-tenant-application) and its [corresponding Github respository](https://github.com/vercel/platforms).
 To setup subdomains in an existing app, you need to do the following:
 1. Add the subdomain to your Vercel configuration as detailed in Step 2 [here](https://vercel.com/guides/nextjs-multi-tenant-application#5.-deploy-to-vercel)
 2. Set up the corresponding nameservers in the DNS settings for your domain.
 
-This is what the `_middleware.ts` file initially looked like, following the example from the repo above.
+This is what the `_middleware.ts` file initially looked like, following the [example from the repo above](https://github.com/vercel/platforms/blob/main/pages/_middleware.ts).
 
 ```ts
 import { NextResponse } from "next/server";
@@ -74,3 +76,15 @@ export default function middleware(req: NextRequest) {
 }
 ```
 
+In development mode, this worked correctly - `app.localhost:3000` would display the `/pages/app/index.tsx` page. However, in production the build happened without errors, but checks threw a `UserScript Error: Failed with response code 500`.
+##### Vercel Deployment - builds without error, checks fail
+![1_deployment-log](/images/middleware-subdomain-500/1_deployment-log.png)
+##### Checkly Log - UserScript Error
+![1_checkly-log](/images/middleware-subdomain-500/1_checkly-log.png)
+##### Vercel Edge Function - React Minified Error
+![1_edge-function-log](/images/middleware-subdomain-500/1_edge-function-log.png)
+
+Though the error code was 500 - a server error - the Vercel edge function log stated a `React Minifed Error`. This is the full error text.
+```
+Objects are not valid as a React child (found: object with keys {children}). If you meant to render a collection of children, use an array instead.
+```
