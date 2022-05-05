@@ -75,11 +75,11 @@ export default function middleware(req: NextRequest) {
   }
 }
 ```
-
-In development mode, this worked correctly - `app.localhost:3000` would display the `/pages/app/index.tsx` page. However, in production the build happened without errors, but checks threw a `UserScript Error: Failed with response code 500`.
+### Part 1: Resolving `UserScript Error: Failed with response code 500`
+In development mode, the `middleware` function worked correctly - `app.localhost:3000` would display the `/pages/app/index.tsx` page. However, in production the build happened without errors, but checks threw a `UserScript Error: Failed with response code 500`.
 ##### Vercel Deployment - builds without error, checks fail
 ![1_deployment-log](/images/middleware-subdomain-500/1_deployment-log.png)
-##### Checkly Log - UserScript Error
+##### Checkly Log - UserScript Error code 500
 ![1_checkly-log](/images/middleware-subdomain-500/1_checkly-log.png)
 ##### Vercel Edge Function - React Minified Error
 ![1_edge-function-log](/images/middleware-subdomain-500/1_edge-function-log.png)
@@ -88,3 +88,272 @@ Though the error code was 500 - a server error - the Vercel edge function log st
 ```
 Objects are not valid as a React child (found: object with keys {children}). If you meant to render a collection of children, use an array instead.
 ```
+
+This indicates that an object is being passed as a React child. A common mistake is when using the `.map` method to create an array of JSX elements and returning an object, instead of a JSX element. However, that was not the error in my code. Since this error was not thrown for a specific page, but on every page- `_app.tsx` could be the source.
+```ts
+//import from packages
+import '../styles/globals.css'
+import { config } from '@fortawesome/fontawesome-svg-core'
+import '@fortawesome/fontawesome-svg-core/styles.css'
+import type { AppProps } from 'next/app'
+//import from context and utils
+import { UserProvider } from '../context/user'
+//import from components
+import AppLayout from '../components/app/appLayout'
+import HomeLayout from '../components/home/homeLayout'
+import { NextPageContext } from 'next'
+
+interface CustomAppProps extends Omit<AppProps, "Component"> {
+  Component: AppProps["Component"] & { layout: "string" };
+}
+
+const layouts = {
+  AppL: AppLayout,
+  HomeL: HomeLayout, 
+}
+
+config.autoAddCss = false;
+
+function MyApp({ Component, pageProps }: CustomAppProps) {
+  const selected = Component.layout;
+  const Layout = layouts[selected as keyof typeof layouts] || ((children) => <>{children}</>);
+  return (
+  <UserProvider>
+  <Layout >
+    <linearGradient id="icon-gradient" x2="0" y2="1">
+        <stop offset="0%" stopColor="#C3F73A" />
+        <stop offset="50%" stopColor="#B5B68D" />
+        <stop offset="100%" stopColor="#A360FB" />
+    </linearGradient>
+    <Component {...pageProps} />
+  </Layout>
+  </UserProvider>)
+}
+
+export default MyApp
+```
+
+There was a typo in the line
+```ts
+const Layout = layouts[selected as keyof typeof layouts] || ((children) => <>{children}</>);
+```
+It should be:
+```ts
+ const Layout = layouts[selected as keyof typeof layouts] || (({ children }) => <>{children}</>);
+```
+`Layout` is chosen this way because I want to use different layouts for the parent domain and the `app` subdomain. The [Vercel docs](https://nextjs.org/docs/basic-features/layouts#per-page-layouts) have a mildly different approach for this.
+
+This fixed the `React Error` as seen in the Vercel Edge function logs.
+
+### Part 2: `UserScript Error: Failed with response code 404`
+
+`404` is a page not found error, and as earlier, was occuring only when deploying to Vercel, not in development.
+##### Checkly Log: UserScript Error Code 404
+![2_checkly-log](/images/middleware-subdomain-500/2_checkly-log.png)
+![3_checkly-log-2](/images/middleware-subdomain-500/2_checkly-log_2.png)
+
+By this point, I'd also set up the [Logflare integration for Vercel](https://vercel.com/integrations/logflare). This allows you to view all logs from a Vercel project in one place - logs from all deployments are included, ordered by timestamp. You can also search for specific error logs, group logs by timestamps or Vercel deployment urls, and view whether logs are happening during the `build` process, when using the `edge` functions or otherwise.
+While Checkly was showing a `404` error, there were no error logs in Logflare.
+
+At this point, I tried deploying without the `_middleware` file and the deployment happened without errors. I could navigate to pages in the `/pages/app` directory, using `/app/<route-name>`. This pointed to an error in the `middleware` function.
+After adding back the `_middleware` file, I deployed again. This time, when the checks threw a `404` error, I chose to skip the checks and promote the failed deployment to production. (I could do this since the build was happening without any errors).
+In this deployment, which I had forced to production - all routes under the `app` subdomain were resolving correctly, however all pages on the parent domain (the `/pages/home` directory) would throw a `404`.
+Conclusion: the `host` url was not resolving to `/home` in the middleware. Back to the `_middleware` code.
+```ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export default function middleware(req: NextRequest) {
+  // Clone the request url
+  const url = req.nextUrl.clone();
+  // Get pathname of request (e.g. /blog-slug)
+  const { pathname } = req.nextUrl;
+  // Get hostname of request (e.g. demo.vercel.pub)
+  const hostname = req.headers.get("host");
+
+  if (!hostname)
+    return new Response(null, {
+      status: 400,
+      statusText: "No hostname found in request headers",
+    });
+
+  const currentHost =
+    process.env.NODE_ENV === "production" && process.env.VERCEL === "1"
+      ? hostname
+          .replace(`www.telborg.com`, "")
+          .replace(`.telborg.com`, "")
+          .replace(`.telborg.vercel.app`, "")
+      : hostname.replace(`.localhost:3000`, "");
+
+  if (pathname.startsWith(`/_sites`))
+    return new Response(null, {
+      status: 404,
+    });
+
+  if (!pathname.includes(".") && !pathname.startsWith("/api")) {
+    if (currentHost == "app") {
+      if (
+        pathname === "/login" &&
+        (req.cookies["next-auth.session-token"] ||
+          req.cookies["__Secure-next-auth.session-token"])
+      ) {
+        url.pathname = "/app";
+        return NextResponse.redirect(url);
+      }
+
+      url.pathname = `/app${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    if (
+      hostname === "localhost:3000" ||
+      hostname === "www.telborg.com"
+    ) {
+      url.pathname = `/home${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    url.pathname = `/_sites/${currentHost}${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+}
+```
+
+Vercel assigns a unique url to each deployment of your project. This is of the form `<project name>-<some unique id>-<team/account slug>.vercel.app`. For instance, one of the failed deployments has the url `telborg-nyasth24u-aar2dee2.vercel.app`.
+In the `_middleware` code above, the code for fetching `currentHost`
+```ts
+const currentHost =
+    process.env.NODE_ENV === "production" && process.env.VERCEL === "1"
+      ? hostname
+          .replace(`www.telborg.com`, "")
+          .replace(`.telborg.com`, "")
+          .replace(`.telborg.vercel.app`, "")
+      : hostname.replace(`.localhost:3000`, "");
+```
+This fetches the `currentHost` in `production` and `development` modes (the else clause). To get the host during the deployment, the deployment url can be accessed using `process.env.VERCEL_URL` or `process.env.NEXT_PUBLIC_VERCEL_URL`. (Refer the [System environment variables available in Vercel](https://vercel.com/docs/concepts/projects/environment-variables#system-environment-variables)). I modified the `currentHost` code as follows:
+```ts
+const currentHost = (() => {
+    return (
+      (process.env.NODE_ENV === "production" && process.env.VERCEL === "1") ? 
+      hostname
+      .replace(`www.telborg.com`, "")
+      .replace(`.telborg.com`, "")
+      .replace(`.telborg.vercel.app`, "")
+      : (hostname.includes(".vercel.app")) ? hostname.replace(`.${process.env.NEXT_PUBLIC_VERCEL_URL}`, "")
+      : hostname.replace(`.localhost:3000`, ""));
+  })();
+```
+
+This did not resolved the `404` error on Checkly.
+![4_checkly-log](/images/middleware-subdomain-500/4_checkly-log.png)
+
+I again pushed the deployment to production, skipping the checks. I could now access all pages on the subdomain `app.telborg.com` and also on the domain `www.telborg.com`, but not `telborg.com`. In the last if clause in `_middleware`, the conditions include `hostname === "localhost:3000"` and `hostname === "www.telborg.com"`. Adding `hostname === "telborg.com"` here allowed me to access the website on `telborg.com` too.
+```ts
+if (
+      hostname === "localhost:3000" ||
+      hostname === "www.telborg.com" ||
+      hostname === "telborg.com"
+    ) {
+      url.pathname = `/home${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+```
+
+However, Checkly was not satisfied and was still showing the `404`.
+![5_checkly-log](/images/middleware-subdomain-500/5_checkly-log.png)
+
+Finally, I included the vercel deployment url as a possible hostname `hostname === process.env.NEXT_PUBLIC_VERCEL_URL` in the last if clause in `_middleware`.
+```ts
+if (
+      hostname === "localhost:3000" ||
+      hostname === "www.telborg.com" ||
+      hostname === "telborg.com" ||
+      hostname === process.env.NEXT_PUBLIC_VERCEL_URL
+    ) {
+      url.pathname = `/home${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+```
+
+Here's what the `_middleware` looks like now:
+```ts
+import { NextResponse } from "next/server";
+
+import type { NextRequest } from "next/server";
+export default function middleware(req: NextRequest) {
+  // Clone the request url
+  const url = req.nextUrl.clone();
+  // Get pathname of request (e.g. /blog-slug)
+  const { pathname } = req.nextUrl;
+  // Get hostname of request (e.g. demo.vercel.pub)
+  const hostname = req.headers.get("host");
+
+  if (!hostname)
+    return new Response(null, {
+      status: 400,
+      statusText: "No hostname found in request headers",
+    });
+
+  const currentHost = (() => {
+    return (
+      (process.env.NODE_ENV === "production" && process.env.VERCEL === "1") ? 
+      hostname
+      .replace(`www.telborg.com`, "")
+      .replace(`.telborg.com`, "")
+      .replace(`.telborg.vercel.app`, "")
+      .replace(`.${process.env.NEXT_PUBLIC_VERCEL_URL}`, "")
+      : (hostname.includes(".vercel.app")) ? hostname.replace(`.${process.env.NEXT_PUBLIC_VERCEL_URL}`, "")
+      : hostname
+          .replace(`.localhost:3000`, "")
+          .replace(`.localhost:3001`, ""));
+  })();
+
+  if (pathname.startsWith(`/_sites`))
+    return new Response(null, {
+      status: 404,
+      statusText: '_sites not found via direct access',
+    });
+
+  if (!pathname.includes(".") && !pathname.startsWith("/api")) {
+    if (currentHost == "app") {
+      if (
+        pathname === "/login" &&
+        (req.cookies["next-auth.session-token"] ||
+          req.cookies["__Secure-next-auth.session-token"])
+      ) {
+        url.pathname = "/app";
+        return NextResponse.redirect(url);
+      }
+
+      url.pathname = `/app${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    if (
+      hostname === "localhost:3000" ||
+      hostname === "www.telborg.com" ||
+      hostname === "telborg.com" ||
+      hostname === "localhost:3001" ||
+      hostname === process.env.NEXT_PUBLIC_VERCEL_URL
+    ) {
+      url.pathname = `/home${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    url.pathname = `/_sites/${currentHost}${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+}
+```
+
+And that's all.
+
+To setup subdomains in your Vercel project:
+1. Add the subdomain and wildcard domain in your Vercel project domain settings.
+2. Setup the subdomain and wildcard domain in the DNS settings for your domain.
+3. Add `_middleware.ts` (or `_middleware.js`) file to your the root of your `/pages` directory. 
+4. Move all pages for the parent domain in the `/pages/home` directory.
+5. Add code to `_middleware.ts` using the [Vercel Platforms Starter](https://github.com/vercel/platforms/blob/5d2479f525b3f2611af7215e7b3465aa80f6d2a5/pages/_middleware.ts) and follow the instructions mentioned for adding your custom domain and `.vercel.app` domain.
+6. Add code to resolve the deployment urls using `process.env.NEXT_PUBLIC_VERCEL_URL`.
+
+And Deploy to Vercel!
