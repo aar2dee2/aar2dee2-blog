@@ -25,8 +25,6 @@ export default function Home({ allPostsData }) {
         <p>I write about building with NextJS and Typescript</p>
         <p>
           <a href='https://twitter.com/aar2dee21' target={"_blank"}>Say hi 👋🏻</a>
-          {/* (This is a sample website - you’ll be building a site like this on{' '}
-          <a href="https://nextjs.org/learn">our Next.js tutorial</a>.) */}
         </p>
       </section>
       <section className={`${utilStyles.headingMd} ${utilStyles.padding1px}`}>

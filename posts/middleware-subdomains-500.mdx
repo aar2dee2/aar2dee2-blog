@@ -2,5 +2,75 @@
 title: 'NextJS Middleware for subdomains and resolving a 500'
 date: '2022-05-03'
 ---
+---
+###### Goal: Create an `app` subdomain to host the app on [Telborg](telborg.com)
+###### Error: `UserScript Error: Failed with response code 500`
+---
+To create an app subdomain, such as `app.mydomain.com`, I used the [Vercel Platforms Starter Kit](https://vercel.com/guides/nextjs-multi-tenant-application) and its [corresponding Github respository](https://github.com/vercel/platforms).
+To setup subdomains in an existing app, you need to do the following:
+1. Add the subdomain to your Vercel configuration as detailed in Step 2 [here](https://vercel.com/guides/nextjs-multi-tenant-application#5.-deploy-to-vercel)
+2. Set up the corresponding nameservers in the DNS settings for your domain.
 
-##### Goal: Create an `app` subdomain to host the app on [Telborg](telborg.com)
+This is what the `_middleware.ts` file initially looked like, following the example from the repo above.
+
+```ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export default function middleware(req: NextRequest) {
+  // Clone the request url
+  const url = req.nextUrl.clone();
+
+  // Get pathname of request (e.g. /blog-slug)
+  const { pathname } = req.nextUrl;
+
+  // Get hostname of request (e.g. demo.vercel.pub)
+  const hostname = req.headers.get("host");
+  if (!hostname)
+    return new Response(null, {
+      status: 400,
+      statusText: "No hostname found in request headers",
+    });
+
+  const currentHost =
+    process.env.NODE_ENV === "production" && process.env.VERCEL === "1"
+      ?
+        hostname
+          .replace(`.telborg.com`, "")
+          .replace(`.app.telborg.com`, "")
+      : hostname.replace(`.localhost:3000`, "");
+
+  if (pathname.startsWith(`/_sites`))
+    return new Response(null, {
+      status: 404,
+    });
+
+  if (!pathname.includes(".") && !pathname.startsWith("/api")) {
+    if (currentHost == "app") {
+      if (
+        pathname === "/login" &&
+        (req.cookies["next-auth.session-token"] ||
+          req.cookies["__Secure-next-auth.session-token"])
+      ) {
+        url.pathname = "/";
+        return NextResponse.redirect(url);
+      }
+
+      url.pathname = `/app${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    if (
+      hostname === "localhost:3000" ||
+      hostname === "telborg.com"
+    ) {
+      url.pathname = `/home${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    url.pathname = `/_sites/${currentHost}${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+}
+```
+

@@ -64,7 +64,12 @@
   }
 
   h6 {
-    font-size: 1rem;
+    font-size: 1.1rem;
+  }
+
+  code {
+    font-size: 0.8em;
+    color: darkmagenta;
   }
 }
 
