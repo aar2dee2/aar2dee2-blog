@@ -1,0 +1,30 @@
+---
+title: 'Supabase Database Error Saving New User'
+date: '2022-05-06'
+---
+---
+###### Goal: Enable Google Auth in my app connected to Supabase
+###### Error: `Database Error Saving New User`
+---
+
+> Note: There are probably a number of issues that can cause this error. This post talks about the error in my code and how I found it.
+
+To set up `Login with Google` in my app, I used the excellent [Supabase docs](https://supabase.com/docs/guides/auth/auth-google). The Login/Logout functionality is required in many places in the app, so I added it to the `UserContext` - an approach, discussed by Supabase's [Jon Meyers](https://twitter.com/jonmeyers_io) in [this video](https://egghead.io/lessons/next-js-make-user-state-globally-accessible-in-next-js-with-react-context-and-providers).
+
+This is what my `/context/user.ts` looks like:
+```ts
+
+```
+
+I created reusable components - `LoginWithGoogle` and `Logout`.
+```ts
+
+```
+
+The `Logout` component:
+```ts
+
+```
+
+After adding these to relevant pages, and clicking on `Login With Google`, I would get redirected to th Google OAuth screen:
+![]()

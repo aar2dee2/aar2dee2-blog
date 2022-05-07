@@ -15,6 +15,7 @@ export default function Layout({ children, home }) {
     <div className="layout-container">
       <Head>
         <link rel="icon" href="/favicon.ico" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/github-dark.min.css"></link>
         <meta
           name="description"
           content="Building with NextJS, Typescript, Elixir"

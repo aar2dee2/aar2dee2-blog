@@ -71,10 +71,6 @@
     font-size: 1.1rem;
   }
 
-  pre {
-    @apply py-2 bg-blue-50 my-2 rounded-sm px-4 whitespace-pre-line;
-  }
-
   code {
     font-size: 0.8em;
     padding: 2px 6px;
