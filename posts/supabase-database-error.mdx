@@ -162,3 +162,10 @@ export default function Logout() {
 
 After adding these to relevant pages, and clicking on `Login With Google` button, I would get redirected to the Google OAuth screen:
 > ![google-oauth-screen](/images/supabase-database-error/google-oauth-screen.png)
+
+After entering my Google login credentials, I would get redirected to my app, but an error would appear in the address bar
+> ![address-bar-database-error](/images/supabase-database-error/address-bar-database-error.png)
+
+I turned to Supabase logs to inspect the `Database Error Saving New User`
+Inside your Supabase project, clicking the `Database` icon on the left hand menu, shows the option to view `API logs` and `Postgres logs`.
+> ![postgres-logs-supabase](/videos/supabase-database-error/postgres-logs-supabase.mov)

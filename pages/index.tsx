@@ -22,7 +22,7 @@ export default function Home({ allPostsData }) {
         <title>{siteTitle}</title>
       </Head>
       <section className={utilStyles.headingMd}>
-        <p>I write about building with NextJS and Typescript</p>
+        <p>I write about building with NextJS, Typescript and Elixir</p>
         <p>
           <a href='https://twitter.com/aar2dee21' target={"_blank"}>Say hi 👋🏻</a>
         </p>
