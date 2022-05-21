@@ -7,7 +7,7 @@ date: '2022-05-20'
 ---
 Using SMS OTPs is the norm for phone number verification. And often a reason for bad user experience due to delays or non-delivery altogether. Twilio allows you to verify phone numbers through a WhatsApp code, without having to set up a WhatsApp Business account.
 On the server side, you can use their [Verify WhatsApp](https://www.twilio.com/docs/verify/whatsapp) feature. However, in client-side libraries (I'm using NextJS), Twilio [recommends using Functions](https://www.twilio.com/docs/libraries/node#server-side-only-not-front-end), rather than their Javascript library.
-This blog post details how to setup Twilio functions and use them for verify phone numbers through WhatsApp in your React app.
+This blog post details how to setup Twilio functions and use them to verify phone numbers through WhatsApp in your React app.
 For getting phone inputs from the user, I used the [react-phone-input-2 package](https://www.npmjs.com/package/react-phone-input-2).
 This returns the phone number as a string, including the country code for the country selected. Here I update the `userDetails` object with the phone number entered by the user.
 ```ts
@@ -27,7 +27,7 @@ This returns the phone number as a string, including the country code for the co
     <button onClick={props.fetchOtp}>Get WhatsApp Code</button>
 </div>
 ```
-The `fetOtp` function calls an `api` route that will in turn call the relevant Twilio function.
+The `fetchOtp` function calls an `api` route that will in turn call the relevant Twilio function.
 ```ts
 async function fetchOtp(event: React.MouseEvent) {
     event.preventDefault();
@@ -53,4 +53,16 @@ async function fetchOtp(event: React.MouseEvent) {
 ```
 To call the Twilio function using an `http` rquest directly in the `fetchOtp` function, you would need to [expose your Twilio credentials to the client](https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser). This is not recommended, hence, we call an api route that makes the `http` request to Twilio for us.
 Ensure that your `TWILIO_AUTH_TOKEN` is added to your `.env` file. The `Auth Token` can be found in your Twilio Console.
-> ![get auth token from twilio console](/images/twilio-console-auth-token)
+> ![get auth token from twilio console](/images/twilio-verify-whatsapp/twilio-console-auth-token.png)
+
+To set up the Twilio function to send a WhatsApp code to a phone number provided, you need to setup a new `Verify` service. On the left-hand navigation bar in Twilio, click on Explore products.
+
+>![pin-verify-functions](/videos/twilio-verify-whatsapp/pin-verfiy-functions.mov)
+
+In the `Verify` menu, select `Services` and click on the `+` to create a new service. Give it a name and keep only WhatsApp enabled in the Delivery Channels option. The code length is 6 digits by default, you can change this.
+
+>![whatsapp-otp-only](/videos/twilio-verify-whatsapp/whatsapp-otp-only.mov)
+
+Let's setup a Function now. Go to `Functions` in the Twilio Console and select `Services` from the sub-menu. Create a new service.
+
+
